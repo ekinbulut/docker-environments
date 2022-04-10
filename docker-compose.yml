@@ -1,0 +1,76 @@
+version: "3.9"
+services:
+  web:
+    image: nginx
+    container_name: "nginx-web"
+    ports:
+      - "80:80"
+    volumes:
+      - /var/log/nginx:/var/log/nginx
+      - /var/www/html:/var/www/html
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 30s
+      update_config:
+        parallelism: 2
+        delay: 10s
+        failure_action: rollback
+        monitor: 5s
+        max_failure_ratio: 0.3
+        order: start-first
+      placement:
+        constraints:
+          - node.role == manager
+          - node.labels.az == us-west1-a
+        max_replicas_per_node: 3
+    networks:
+      - private
+    healthcheck:
+      test: [ "CMD", "curl", "http://localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 2s
+  cache:
+    image: redis
+    container_name: "redis-cache"
+    volumes:
+      - /var/lib/redis:/var/lib/redis
+    ports:
+      - "6379:6379"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 30s
+      placement:
+        constraints:
+          - node.role == manager
+          - node.labels.az == us-west1-a
+        max_replicas_per_node: 3
+    networks:
+      - private
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 2s
+networks:
+  private:
